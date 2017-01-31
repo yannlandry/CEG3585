@@ -96,10 +96,8 @@ public class ChatClient extends Applet implements Runnable, ActionListener, Wind
 	public void windowClosing(WindowEvent we) {
 		closeAction();
 	}
-	public void windowClosed(WindowEvent we) {
-		closeAction();
-	}
 
+	public void windowClosed(WindowEvent we) {}
 	public void windowDeactivated(WindowEvent we) {}
 	public void windowActivated(WindowEvent we) {}
 	public void windowDeiconified(WindowEvent we) {}
