@@ -128,7 +128,9 @@ public class ChatClient extends Applet implements Runnable, ActionListener, Wind
 
 			// get information
 			serverIP = JOptionPane.showInputDialog("Enter IP of chat server:");
-			nPort = Integer.parseInt(JOptionPane.showInputDialog("Enter port number for the chat server:"));
+			try {
+				nPort = Integer.parseInt(JOptionPane.showInputDialog("Enter port number for the chat server (or nothing for default port):"));
+			} catch (NumberFormatException e) {};
 			userName = JOptionPane.showInputDialog("Enter user name for this session:");
 
 			// connect to the socket
