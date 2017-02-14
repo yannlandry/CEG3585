@@ -1,4 +1,7 @@
-
+/*
+ * Yann Landry, 7603630
+ * Jonathan Guillotte-Blouin, 7900293
+ */
 
 import java.io.BufferedReader;
 import java.io.IOException;
