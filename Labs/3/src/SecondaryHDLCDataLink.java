@@ -11,15 +11,15 @@ import java.util.ArrayList;
 //    Bit stuffing (frames are transmitted as strings)
 //  Frames implemented:
 //     Command Frames:
-//        NRM: 
-//        DISC: 
+//        NRM:
+//        DISC:
 //     Response Frames:
-//        UA: 
+//        UA:
 //     Command/Response Frames:
 //        I: maximum length of data field is 64 bytes.
-//        RR: 
+//        RR:
 
-public class SecondaryHDLCDataLink 
+public class SecondaryHDLCDataLink
 {
 	// Private instance variables
 	private PhysicalLayer physicalLayer; // for sending/receiving frames
@@ -28,14 +28,14 @@ public class SecondaryHDLCDataLink
 	// For the secondary station, used values at index 0
 	private int vs;
 	private int vr;
-	private int rhsWindow; // right hand side of window.  
+	private int rhsWindow; // right hand side of window.
 	private int windowSize; // transmit window size. reception window size is 1.
 	private ArrayList<String> frameBuffer;
-	
+
 	// Constructor
 	public SecondaryHDLCDataLink(int adr)
 	{
-		physicalLayer = new PhysicalLayer();	
+		physicalLayer = new PhysicalLayer();
 		stationAdr = adr;
 	    vs = 0;
 	    vr = 0;
@@ -43,12 +43,12 @@ public class SecondaryHDLCDataLink
 	    frameBuffer = new ArrayList<String>();
 	    rhsWindow = vs+windowSize; // seq # < rhsWindow
 	}
-	
+
 	public void close() throws IOException
 	{
 		physicalLayer.close();
 	}
-	
+
 	/*----------------------------------------------------------
 	 *  Connection Service
 	 *-----------------------------------------------------------*/
@@ -68,7 +68,7 @@ public class SecondaryHDLCDataLink
 		{
 			cd = Result.ResultCode.UnexpectedFrameReceived;
 			retStr = type;
-		}	
+		}
 		else
 		{
 			String uframe = frame.substring(HdlcDefs.M1_START, HdlcDefs.M1_END) +
@@ -80,7 +80,7 @@ public class SecondaryHDLCDataLink
 			}
 			else System.out.println("Data Link Layer: received SNRM frame >"+BitString.displayFrame(frame)+"<");
 		}
-		return(new Result(cd, adr, retStr));		
+		return(new Result(cd, adr, retStr));
 	}
 
 	public Result dlConnectResponse()
@@ -95,13 +95,13 @@ public class SecondaryHDLCDataLink
 		physicalLayer.transmit(frame);
 		vs=0;
 		vr=0;
-		return(new Result(cd, stationAdr, null));				
+		return(new Result(cd, stationAdr, null));
 	}
-	
+
 	/*----------------------------------------------------------
 	 *  Disconnect service - non-confirmed service
-	 *-----------------------------------------------------------*/	
-	
+	 *-----------------------------------------------------------*/
+
 	public Result dlDisconnectIndication()
 	{   // Disconnection to secondary.
 		Result.ResultCode cd = Result.ResultCode.SrvSucessful;
@@ -116,7 +116,7 @@ public class SecondaryHDLCDataLink
 		{
 			cd = Result.ResultCode.UnexpectedFrameReceived;
 			retStr = type;
-		}	
+		}
 		else
 		{
 			String uframe = frame.substring(HdlcDefs.M1_START, HdlcDefs.M1_END) +
@@ -128,12 +128,12 @@ public class SecondaryHDLCDataLink
 			}
 			else System.out.println("Data Link Layer: received DISC frame >"+BitString.displayFrame(frame)+"<");
 		}
-		return(new Result(cd, adr, retStr));		
-	}	
+		return(new Result(cd, adr, retStr));
+	}
 
 	/*----------------------------------------------------------
 	 *  Data service - non-confirmed service
-	 *-----------------------------------------------------------*/	
+	 *-----------------------------------------------------------*/
 
 	public Result dlDataRequest(String sdu)
 	{
@@ -141,9 +141,9 @@ public class SecondaryHDLCDataLink
 		Result.ResultCode cd = Result.ResultCode.SrvSucessful;
 
 		// Wait for poll - need an RR with P bit - 1
-		
+
 		/*Completer cette partie*/
-				
+
 		// Send the SDU
 		// After each transmission, check for an ACK (RR)
 		// Use a sliding window
@@ -166,9 +166,9 @@ public class SecondaryHDLCDataLink
 			if(frame != null) // have a frame
 			{
 				displayDataXchngState("received an RR frame (ack) >"+BitString.displayFrame(frame)+"<");
-			}	
+			}
 		}
-		return(new Result(cd, 0, null));		
+		return(new Result(cd, 0, null));
 	}
 
 	/*------------------------------------------------------------------------
@@ -185,10 +185,14 @@ public class SecondaryHDLCDataLink
 	// sz - size of the window
 	private int checkNr(int nr, int rhs, int sz)
 	{
-		/*Completer cette methode */
-		
+		int lhs;
+
+		if (rhs >= sz) {
+			lhs = ;
+		}
+
 	}
-	
+
 	// Helper method to get an RR-frame
 	// If wait is true then wait until a frame
 	// arrives (call getframe(true).
@@ -197,9 +201,28 @@ public class SecondaryHDLCDataLink
 	// or frame received is not an RR frame.
 	private String getRRFrame(boolean wait)
 	{
-		
-		/*Completer cette methode */
-		return(frame);
+		String frame;
+
+		do {
+			frame = getFrame(wait);
+
+			// bonne trame?
+			if (frame != null) {
+				String type = frame.substring(15, 17);
+
+				if (type.equals(HdlcDefs.S_FRAME)) {
+					String sframe = frame.substring(17, 19);
+
+					// si pas "RR", on
+					if (!sframe.equals(HdlcDefs.RR_SS)) {
+						frame = null;
+					}
+				}
+				// sinon, frame = null
+			}
+		} while(wait && frame == null);
+
+		return frame;
 	}
 
 	// For displaying the status of variables used
@@ -232,11 +255,11 @@ public class SecondaryHDLCDataLink
 			if(frame != null)
 			{
 				int adr = BitString.bitStringToInt(frame.substring(HdlcDefs.ADR_START, HdlcDefs.ADR_END));
-				if(adr != stationAdr) frame = null;  // ignore strings for other destinations			
+				if(adr != stationAdr) frame = null;  // ignore strings for other destinations
 			}
 		} while(frame == null && wait);
 		//if(frame != null) System.out.println("Data Link Layer: Received frame >"+BitString.displayFrame(frame)+"<");
 		return(frame);
 	}
-		
+
 }
