@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.lang.Math;
 import java.util.ArrayList;
 
 // Data Link Layer Entity for Secondary Station
@@ -21,16 +22,24 @@ import java.util.ArrayList;
 
 public class SecondaryHDLCDataLink
 {
+	public static final MAX_WINDOW_SIZE = 8;
+
 	// Private instance variables
 	private PhysicalLayer physicalLayer; // for sending/receiving frames
 	private int stationAdr; // Station address - not used for the primary station
 	// Data for multiple connections in the case of the primary station
 	// For the secondary station, used values at index 0
-	private int vs;
-	private int vr;
+
+	/*
+	private int vs; // looks like last message sent
+	private int vr; // looks like last message received
+	// how about decent variable names
+	*/
+
 	private int rhsWindow; // right hand side of window.
 	private int windowSize; // transmit window size. reception window size is 1.
-	private ArrayList<String> frameBuffer;
+							// do we need that variable?
+	private ArrayList<String> frameBuffer; // i guess the window plugs on here
 
 	// Constructor
 	public SecondaryHDLCDataLink(int adr)
@@ -39,7 +48,7 @@ public class SecondaryHDLCDataLink
 		stationAdr = adr;
 	    vs = 0;
 	    vr = 0;
-	    windowSize = 4;  //
+	    windowSize = 4; // why 4?
 	    frameBuffer = new ArrayList<String>();
 	    rhsWindow = vs+windowSize; // seq # < rhsWindow
 	}
@@ -137,43 +146,95 @@ public class SecondaryHDLCDataLink
 
 	public Result dlDataRequest(String sdu)
 	{
-		String frame; // For building frames
 		Result.ResultCode cd = Result.ResultCode.SrvSucessful;
 
 		// Wait for poll - need an RR with P bit - 1
-
-		/*Completer cette partie*/
+		// wait wtf
+		getRRFrame(true); // <- this?
 
 		// Send the SDU
 		// After each transmission, check for an ACK (RR)
 		// Use a sliding window
 		// Reception will be go back-N
+
+		// Split the string into chunks you can send
 		String [] dataArr = BitString.splitString(sdu, HdlcDefs.MAX_DATA_SIZE_BYTES);
-		// Convert the strings into bitstrings
-		for(int ix=0 ; ix < dataArr.length; ix++)
-			dataArr[ix] = BitString.stringToBitString(dataArr[ix]);
+
+		// Convert these chunks into proper bitstrings
+		// make frames out of them right away, i guess
+		for(int ix = 0; ix < dataArr.length; ix++) {
+			String data = BitString.stringToBitString(dataArr[ix]);
+			String frame = makeIFrame(data, ix % 8, dataArr.length - ix == 1);
+			frameBuffer.add(frame);
+			displayDataXchngState("Data Link Layer: prepared and buffered I frame >" + BitString.displayFrame(frame) + "<");
+		}
+
+		// set window and things
+		// i don't even know what i'm doing
+		rhsWindow = Math.min(MAX_WINDOW_SIZE, frameBuffer.size());
+		vr = vs = 0;
+
 		// Loop to transmit frames
-		/*Completer la boucle*/
-		while(  )
-		{
-			// Send frame if window not closed and data not all transmitted
-			if(  )
-			{
-				displayDataXchngState("Data Link Layer: prepared and buffered I frame >"+BitString.displayFrame(frame)+"<");
+		// i dunno wtf vr and vs mean but they aren't used anywhere so we'll use that
+		// vs points to the next frame to send
+		// vr points to the frame that was requested in the last RR
+		// rhsWindow points to the first frame at the right of the window
+		while(vr < frameBuffer.size()) {
+			// if window not closed
+			// send a frame
+			if(vs < rhsWindow) {
+				physicalLayer.transmit(frameBuffer[vs++]);
 			}
-			// Check for RR
-			frame = getRRFrame(false); // just poll
-			if(frame != null) // have a frame
-			{
-				displayDataXchngState("received an RR frame (ack) >"+BitString.displayFrame(frame)+"<");
+
+			// check for acknowledgement of frame
+			// poll only, otherwise keep sending for a while
+			frame = getRRFrame(false);
+
+			if(frame != null) {
+				displayDataXchngState("received an RR frame (ack) >" + BitString.displayFrame(frame) + "<");
+				// move vr to the position in the RR
+				// move vs there as well?
+				// what's up with the timeout?
+				int nr = BitString.bitStringToInt(frame.substring(HdlcDefs.NR_START, HdlcDefs.NR_END));
+
+				// if nr is equal to vr,
+				// we've probably got the same RR twice,
+				// meaning some frames have been lost
+				// so bring vs back
+				if(nr == vr) {
+					vs = vr;
+				}
+				else {
+					vr+= (nr - vr) % MAX_WINDOW_SIZE;
+					rhsWindow = Math.min(vr + MAX_WINDOW_SIZE, frameBuffer.size());
+				}
+				// this is fucked up
 			}
 		}
+
 		return(new Result(cd, 0, null));
 	}
 
 	/*------------------------------------------------------------------------
 	 * Helper Methods
 	 *------------------------------------------------------------------------*/
+
+	private String makeIFrame(String bitString, int frameNumber, boolean isFinal) {
+		return
+			// flag
+			HdlcDefs.FLAG
+			// station address
+			+ BitString.intToBitString(stationAdr, 8)
+			// control
+			+ HdlcDefs.I_FRAME
+			+ BitString.intToBitString(frameNumber, 3)
+			+ (isFinal ? HdlcDefs.F1 : HdlcDefs.F0) // not sure about this one
+			+ "000" // not used
+			// contents
+			+ bitString
+			// skip FCS
+			+ HdlcDefs.FLAG;
+	}
 
 	// Determines the number of frames acknowledged from the
 	// acknowledge number nr.
