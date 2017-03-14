@@ -185,12 +185,16 @@ public class SecondaryHDLCDataLink
 	// sz - size of the window
 	private int checkNr(int nr, int rhs, int sz)
 	{
-		int lhs;
+		int lhs = (rhs - sz) % HdlcDefs.SNUM_SIZE_COUNT;
 
-		if (rhs >= sz) {
-			lhs = ;
+		if (lfs < rhs && nr >= lfs) {
+			return nr - lfs;
+		}
+		if (lfs > rhs && (nr <= rhs || nr >= lfs)) {
+			return (nr - lfs) % HdlcDefs.SNUM_SIZE_COUNT;
 		}
 
+		return 0;
 	}
 
 	// Helper method to get an RR-frame
